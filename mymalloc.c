@@ -3,133 +3,91 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include "include/mymalloc.h"
-// Don't include stdlb since the names will conflict?
 
-// TODO: align
-
-// sbrk some extra space every time we need it.
-// This does no bookkeeping and therefore has no ability to free, realloc, etc.
-void *nofree_malloc(size_t size) {
-  void *p = sbrk(0);
-  void *request = sbrk(size);
-  if (request == (void*) -1) { 
-    return NULL; // sbrk failed
-  } else {
-    assert(p == request); // Not thread safe.
-    return p;
+struct my_block *find_free_block(struct my_block **last_block, size_t size) {
+  struct my_block *current = g_base; //当前的内存块
+  while (current && !(current->free && current->size >= size)) { //当前current存在，不满足(当前找到的内存块空闲且大小大于需要分配的大小)条件继续寻找
+    *last_block = current; // 当前
+    current = current->next; //下一个内存块
   }
+  return current; //找到的结果（需要判断具体的内容是否可用）
 }
 
-// Iterate through blocks until we find one that's large enough.
-// TODO: split block up if it's larger than necessary
-struct block_meta *find_free_block(struct block_meta **last, size_t size) {
-  struct block_meta *current = global_base;
-  while (current && !(current->free && current->size >= size)) {
-    *last = current;
-    current = current->next;
-  }
-  return current;
-}
-
-struct block_meta *request_space(struct block_meta* last, size_t size) {
-  struct block_meta *block;
+struct my_block *find_new_space(struct my_block* last_block, size_t size) {
+  struct my_block *block;
   block = sbrk(0);
-  void *request = sbrk(size + META_SIZE);
-  assert((void*)block == request); // Not thread safe.
-  if (request == (void*) -1) {
-    return NULL; // sbrk failed.
-  }
+  /******************只是证明可以分配*******************/
+  void *request = sbrk(size + META_SIZE); //size是当前想要分配的内存，需要加上META_SIZE是已经存过的内存
+  assert((void*)block == request); //如果线程不安全，停止
+  if (request == (void*) -1) return NULL; //分配失败
+  /**************************************************/
   
-  if (last) { // NULL on first request.
-    last->next = block;
-  }
+  /******************开始分配的语句*********************/
+  if (last_block) last_block->next = block; //第一次请求时last_block==NULL跳过此步，之后每一次使用指针链接当前到指定block，也就是内存的开头
   block->size = size;
   block->next = NULL;
-  block->free = 0;
-  block->magic = 0x12345678;
+  block->free = 0; //标识占用
   return block;
 }
 
-// If it's the first ever call, i.e., global_base == NULL, request_space and set global_base.
-// Otherwise, if we can find a free block, use it.
-// If not, request_space.
+/**
+1. 如果我们能够找到一个空闲块，就使用它
+2. 如果不能，继续调用find_new_space请求空间
+*/
 void *mymalloc(size_t size) {
-  struct block_meta *block;
-  // TODO: align size?
+  struct my_block *block;
 
-  if (size <= 0) {
-    return NULL;
-  }
+  if (size <= 0) return NULL; //1. 非法输入
 
-  if (!global_base) { // First call.
-    block = request_space(NULL, size);
-    if (!block) {
-      return NULL;
-    }
-    global_base = block;
+  if (!g_base) {
+    block = find_new_space(NULL, size);
+    if (!block) return NULL; //2. 无法分配
+    g_base = block;
   } else {
-    struct block_meta *last = global_base;
-    block = find_free_block(&last, size);
-    if (!block) { // Failed to find free block.
-      block = request_space(last, size);
-      if (!block) {
-	      return NULL;
-      }
-    } else {      // Found free block
-      // TODO: consider splitting block here.
-      block->free = 0;
-      block->magic = 0x77777777;
+    struct my_block *last_block = g_base;
+    block = find_free_block(&last_block, size); //在内存空间中找
+    if (!block) {
+      block = find_new_space(last_block, size); //请求新的内存空间
+      if (!block) return NULL; //3. 请求无效
+    } else {
+      //值得注意的：考虑冲突的快
+      block->free = 0; //标识block已经被占用
     }
   }
   
-  return(block+1);
+  return(block+1); //4. 请求成功，返回分配成功的内存块的下一个指针
 }
 
 void *mycalloc(size_t nelem, size_t elsize) {
   size_t size = nelem * elsize;
-  void *ptr = mymalloc(size);
-  memset(ptr, 0, size);
+  void *ptr = mymalloc(size); //分配
+  memset(ptr, 0, size); //初始化调用malloc分配的空间（设置为0)
   return ptr;
 }
 
-// TODO: maybe do some validation here.
-struct block_meta *get_block_ptr(void *ptr) {
-  return (struct block_meta*)ptr - 1;
+struct my_block *get_block_ptr(void *ptr) {
+  return (struct my_block*)ptr - 1; //因为malloc中返回的是分配成功的内存块的下一个指针，这里需要-1才能指向真正分配的内存块的指针
 }
 
 void myfree(void *ptr) {
-  if (!ptr) {
-    return;
-  }
+  if (!ptr) return; //不能释放不存在的指针
 
-  // TODO: consider merging blocks once splitting blocks is implemented.
-  struct block_meta* block_ptr = get_block_ptr(ptr);
-  assert(block_ptr->free == 0);
-  assert(block_ptr->magic == 0x77777777 || block_ptr->magic == 0x12345678);
-  block_ptr->free = 1;
-  block_ptr->magic = 0x55555555;  
+  struct my_block* block_ptr = get_block_ptr(ptr); //分配的内存块指针
+  assert(block_ptr->free == 0); //如果这个内存块并没有被占用，实际上是没有成功的
+  block_ptr->free = 1; //内存标识为1，空闲啦
 }
 
 void *myrealloc(void *ptr, size_t size) {
-  if (!ptr) { 
-    // NULL ptr. realloc should act like malloc.
-    return mymalloc(size);
-  }
+  if (!ptr) return mymalloc(size); //如果未分配，直接分配一个malloc
 
-  struct block_meta* block_ptr = get_block_ptr(ptr);
-  if (block_ptr->size >= size) {
-    // We have enough space. Could free some once we implement split.
-    return ptr;
-  }
+  struct my_block* block_ptr = get_block_ptr(ptr);
+  if (block_ptr->size >= size) return ptr;
 
-  // Need to really realloc. Malloc new space and free old space.
-  // Then copy old data to new space.
+  //需要malloc一个新地址，然后是否原来的旧空间并且干掉野指针，记得偷偷复制原来的数据，对用户透明
   void *new_ptr;
-  new_ptr = mymalloc(size);
-  if (!new_ptr) {
-    return NULL; // TODO: set errno on failure.
-  }
-  memcpy(new_ptr, ptr, block_ptr->size);
+  new_ptr = mymalloc(size); 
+  if (!new_ptr) return NULL;
+  memcpy(new_ptr, ptr, block_ptr->size); //从原块到目的块
   myfree(ptr);  
   return new_ptr;
 }
