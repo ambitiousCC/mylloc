@@ -1,3 +1,3 @@
-# info
+# 说明
 
-this is the tests of repo
+这里是对生成的`.a`静态链接库进行测试：给出了c和c++应用实例，可以通过`make`直接编译生成可执行文件，`make clean`在下一次使用之前操作删除旧文件。

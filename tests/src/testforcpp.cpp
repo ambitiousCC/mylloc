@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 extern "C"{
-#include "./lib/mymalloc.h"
+#include "../lib/mymalloc.h"
 }
 using namespace std;
 int main() {

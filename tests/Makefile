@@ -1,11 +1,17 @@
 CC := gcc
+CPP := g++
 RMRF := rm -rf
 FLAGS = -I include/ -L lib/ -l mymalloc
+LIB = lib/libmymalloc.a
+OBJ = test/*.out
 
-all:tests/test-0.out tests/test-1.out tests/test-2.out tests/test-3.out tests/test-4.out 
+all:tests/testforc.out tests/testforcpp.out
 
 tests/%.out: src/%.c
 	$(CC) $^ $(FLAGS) -o $@
+
+tests/%.out: src/%.cpp
+	$(CPP) -o $@ $^ $(LIB)
 .PHONY:
 clean:
-	$(RMRF) tests/*.out
+	$(RMRF) $(OBJ)
