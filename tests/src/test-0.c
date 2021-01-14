@@ -1,25 +1,46 @@
-#include <iostream>
-#include <cstdlib>
-#include <cstring>
+#include <stdio.h>
+#include <stdlib.h>
 #include <mymalloc.h>
-using namespace std;
 
-int main()
-{
-　　char *p;
-　　p = (char *)mymalloc(10*sizeof(char));
+int main() {
+  int *ptr = mymalloc(sizeof(int));
+  if (ptr == NULL) { 
+    printf("Failed to malloc a single int\n");
+    return 1;
+  }
 
-　　memset(p,0,10*sizeof(char));
+  *ptr = 1;
+  *ptr = 100;
 
-　　strcpy(p,"come on");
-　　cout << "p: " << p << endl;
+  myfree(ptr);
 
-　　p =(char *)myrealloc(p,20*sizeof(char));
-　　cout << "p: " << sizeof(p) << endl;
+  printf("malloc'd an int, assigned to it, and free'd it\n");
 
-　　strcat(p,",baby!");
-　　cout << "p: " << p << endl;
+  int *ptr2 = mymalloc(sizeof(int));
+  if (ptr2 == NULL) { 
+    printf("Failed to malloc a single int\n");
+    return 1;
+  }
 
-　　myfree(p);
-   return 0;
+  *ptr2 = 2;
+  *ptr2 = 200;
+
+  myfree(ptr2);
+  printf("malloc'd an int, assigned to it, and free'd it #2\n");
+
+  malloc(1); // Screw up alignment.
+
+  int *ptr3 = mymalloc(sizeof(int));
+  if (ptr3 == NULL) { 
+    printf("Failed to malloc a single int\n");
+    return 1;
+  }
+
+  *ptr3 = 3;
+  *ptr3 = 300;
+
+  myfree(ptr3);
+  printf("malloc'd an int, assigned to it, and free'd it #3\n");
+
+  return 0;
 }
