@@ -8,4 +8,4 @@ tests/%.out: src/%.c
 	$(CC) $^ $(FLAGS) -o $@
 .PHONY:
 clean:
-	$(RMRF) test/*.out
+	$(RMRF) tests/*.out

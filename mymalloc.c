@@ -2,7 +2,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include "../include/mymalloc.h"
+#include "include/mymalloc.h"
 
 struct my_block *find_free_block(struct my_block **last_block, size_t size) {
   struct my_block *current = g_base; //当前的内存块
@@ -17,7 +17,7 @@ struct my_block *find_new_space(struct my_block* last_block, size_t size) {
   struct my_block *block;
   block = sbrk(0);
   /******************只是证明可以分配*******************/
-  void *request = sbrk(size + META_SIZE); //size是当前想要分配的内存，需要加上META_SIZE是已经存过的内存
+  void *request = sbrk(size + g_size); //size是当前想要分配的内存，需要加上g_size是已经存过的内存
   assert((void*)block == request); //如果线程不安全，停止
   if (request == (void*) -1) return NULL; //分配失败
   /**************************************************/

@@ -1,8 +1,8 @@
 GXX := clang 
 INCLUDE_FILE := ./include/%.h
-SRC_FILES := $(wildcard src/*.c)
-OBJ_FILES = $(SRC_FILES:%.c=.objs/%.o)
-TARGET := lib/libmymalloc.a
+SRC_FILES := $(wildcard *.c)
+OBJ_FILES = $(SRC_FILES:%.c=./.objs/%.o)
+TARGET := ./lib/libmymalloc.a
 CFLAGS = -I./ -Wall -Werror -fPIC -ggdb 
 AR := ar
 ARFLAG := -rc
@@ -10,10 +10,8 @@ ARFLAG := -rc
 $(TARGET): $(SRC_FILES) $(OBJ_FILES)
 	$(AR) $(ARFLAG) $(TARGET) $(OBJ_FILES)
 
-$(OBJ_FILES): .objs/%.o : src/%.c
+$(OBJ_FILES): .objs/%.o : %.c
 	$(GXX) -o $@ -c $< $(CFLAGS)
-
-$(TESTS_FILES): 
 
 clean:
 	-rm $(TARGET) $(OBJ_FILES)
