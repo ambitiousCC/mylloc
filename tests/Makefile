@@ -3,15 +3,18 @@ CPP := g++
 RMRF := rm -rf
 FLAGS = -I include/ -L lib/ -l mymalloc
 LIB = lib/libmymalloc.a
-OBJ = test/*.out
+OBJ = tests/*
 
-all:tests/testforc.out tests/testforcpp.out
+all: tests/testforc tests/testforcpp
 
-tests/%.out: src/%.c
+.PHONY:all
+
+tests/testforc: src/testforc.c
 	$(CC) $^ $(FLAGS) -o $@
 
-tests/%.out: src/%.cpp
+tests/testforcpp: src/testforcpp.cpp
 	$(CPP) -o $@ $^ $(LIB)
-.PHONY:
+
+
 clean:
 	$(RMRF) $(OBJ)
